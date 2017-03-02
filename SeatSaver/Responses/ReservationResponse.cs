@@ -27,7 +27,7 @@ namespace SeatSaver.Responses
             }
         }
 
-        public static ReservationResponse ReservationCriteriaNotMet
+        public static ReservationResponse ReservationCriteriaNotMetResponse
         {
             get
             {
@@ -35,6 +35,20 @@ namespace SeatSaver.Responses
                 {
                     Success = false,
                     Message = "Unable to reserve the requested seats. Try a smaller order or allow seats to be split across more rows.",
+                    OrderID = 0,
+                    Seats = null
+                };
+            }
+        }
+
+        public static ReservationResponse InvalidCustomerResponse
+        {
+            get
+            {
+                return new ReservationResponse
+                {
+                    Success = false,
+                    Message = "The CustomerID you provided is invalid. Please provide a valid CustomerID.",
                     OrderID = 0,
                     Seats = null
                 };

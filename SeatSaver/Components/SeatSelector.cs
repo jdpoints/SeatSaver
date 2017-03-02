@@ -23,15 +23,27 @@ namespace SeatSaver.Components
         {
             Responses.ReservationResponse response = new Responses.ReservationResponse();
 
-            // Check if valid event
+            // Check if valid event and customer
             bool invalidEvent = false;
+            bool invalidCustomer = false;
             using (var db = new ReservationContext())
             {
                 int eventCount = db.Events.Where(w => w.ID.Equals(eventID)).Count();
                 invalidEvent = (eventCount != 1); // Should be exactly 1 event per EventID
+
+                int customerCount = db.Customers.Where(w => w.ID.Equals(customerID)).Count();
+                invalidCustomer = (customerCount != 1); // Should be exactly 1 cutomer per CustomerID
             }
 
-            if (invalidEvent) { return Responses.ReservationResponse.InvalidEventResponse; }
+            if (invalidEvent)
+            {
+                return Responses.ReservationResponse.InvalidEventResponse;
+            }
+            else if (invalidCustomer)
+            {
+                return Responses.ReservationResponse.InvalidCustomerResponse;
+            }
+
 
             // Create list of seats that are reserved
             List<Seat> seats = FindSeatsInVenue(numberOfSeats, eventID, maxRows);
@@ -60,7 +72,7 @@ namespace SeatSaver.Components
             // If invalid order then return failure response
             else
             {
-                response = Responses.ReservationResponse.ReservationCriteriaNotMet;
+                response = Responses.ReservationResponse.ReservationCriteriaNotMetResponse;
             }
 
             return response;
