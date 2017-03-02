@@ -25,12 +25,14 @@ namespace SeatSaver.Models
 
             modelBuilder.Entity<OrderSeat>()
                .HasRequired(r => r.Order)
-               .WithRequiredDependent()
+               .WithMany(w => w.OrderSeats)
+               .HasForeignKey(k => k.OrderID)
                .WillCascadeOnDelete(false);
 
             modelBuilder.Entity<OrderSeat>()
                .HasRequired(r => r.Seat)
-               .WithRequiredDependent()
+               .WithMany(w => w.OrderSeats)
+               .HasForeignKey(k => k.SeatID)
                .WillCascadeOnDelete(false);
 
         }

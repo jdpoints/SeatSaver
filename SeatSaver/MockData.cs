@@ -13,7 +13,7 @@ namespace SeatSaver
     {
         public static void Create()
         {
-            //MockData.CreateEDMX();
+            MockData.CreateEDMX();
 
             try
             {

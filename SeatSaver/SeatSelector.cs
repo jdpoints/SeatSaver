@@ -15,20 +15,39 @@ namespace SeatSaver
         {
             Responses.ReservationResponse response = new Responses.ReservationResponse();
 
+            // Check if valid event
+            bool invalidEvent = false;
+            using (var db = new ReservationContext())
+            {
+                int eventCount = db.Events.Where(w => w.ID.Equals(eventID)).Count();
+                invalidEvent = (eventCount != 1); // Should be exactly 1 event per EventID
+            }
+
+            if (invalidEvent) { return Responses.ReservationResponse.InvalidEventResponse; }
+
             List<Seat> seats = FindSeatsInVenue(numberOfSeats, eventID, maxRows);
             Order order = this.CreateOrder(customerID, eventID, seats);
-
-            response.Order = order;
 
             if (order != null)
             {
                 response.Success = true;
                 response.Message = "Your seats were successfully reserved.";
+
+                response.OrderID = order.ID;
+                response.Seats = new List<Responses.ReservationSeat>();
+
+                foreach (OrderSeat seat in order.OrderSeats)
+                {
+                    Responses.ReservationSeat newSeat = new Responses.ReservationSeat();
+                    newSeat.RowNumber = seat.Seat.Row.RowNumber;
+                    newSeat.SeatNumber = seat.Seat.SeatNumber;
+
+                    response.Seats.Add(newSeat);
+                }
             }
             else
             {
-                response.Success = false;
-                response.Message = "Unable to reserve the requested seats. Try a smaller order or allow seats to be split across more rows.";
+                response = Responses.ReservationResponse.ReservationCriteriaNotMet;
             }
 
             return response;
@@ -42,25 +61,16 @@ namespace SeatSaver
             using (var db = new ReservationContext())
             {
                 List<Row> rows = db.Events
-                    .Include(i => i.Venue.Rows.Select(s => s.Seats))
-                    .FirstOrDefault(f => f.ID.Equals(eventID))
+                    .Where(w => w.ID.Equals(eventID))
+                    .FirstOrDefault()
                     .Venue
                     .Rows
-                    .OrderBy(o => o.RowNumber)
                     .ToList();
 
-                int[] takenSeats = db.Orders
-                    .Where(w => w.EventID.Equals(eventID))
-                    .SelectMany(s => s.OrderSeats)
-                    .Select(s => s.Seat)
-                    .Select(s => s.ID)
+                int[] takenSeats = db.OrderSeats
+                    .Where(w => w.Order.EventID.Equals(eventID))
+                    .Select(s => s.SeatID)
                     .ToArray();
-
-                //int[] takenSeats = db.Orders
-                //    .Where(w => w.EventID.Equals(eventID))
-                //    .Select(s => s.Seats)
-                //    .SelectMany(m => m.Select(s => s.ID))
-                //    .ToArray();
 
                 int seatsNeeded = seats;
                 int rowsRemaining = maxRows;
@@ -75,10 +85,6 @@ namespace SeatSaver
                         rowsRemaining--;
                         selectedSeats.AddRange(newSeats);
                     }
-                    else
-                    {
-                        seatsNeeded += this.RemoveNearestRow(ref selectedSeats);
-                    }
 
                     if (seatsNeeded == 0)
                     {
@@ -87,6 +93,11 @@ namespace SeatSaver
                     else if (rowsRemaining == 0)
                     {
                         seatsNeeded += this.RemoveNearestRow(ref selectedSeats);
+                        rowsRemaining++;
+                    }
+                    else if (rowsRemaining < 0)
+                    {
+                        throw new InvalidOperationException("Seats spread across too many rows.");
                     }
                 }
 
@@ -147,17 +158,18 @@ namespace SeatSaver
             return selectedSeats;
         }
 
-        //[MethodImpl(MethodImplOptions.Synchronized)]
+        [MethodImpl(MethodImplOptions.Synchronized)]
         private Order CreateOrder(int customerID, int eventID, List<Seat> seats)
         {
             if (seats.Count > 0)
             {
+                Order newOrder = new Order();
+
                 using (var db = new ReservationContext())
                 using (DbContextTransaction transaction = db.Database.BeginTransaction())
                 {
                     try
                     {
-                        Order newOrder = new Order();
                         newOrder.CustomerID = customerID;
                         newOrder.EventID = eventID;
 
@@ -166,25 +178,24 @@ namespace SeatSaver
                         foreach(Seat seat in seats)
                         {
                             OrderSeat newSeat = new OrderSeat();
-                            newSeat.Order = newOrder;
+                            //newSeat.Order = newOrder;
+                            newSeat.OrderID = newOrder.ID;
+                            //newSeat.Seat = seat;
                             newSeat.SeatID = seat.ID;
                             
                             newOrder.OrderSeats.Add(newSeat);
                             db.OrderSeats.Add(newSeat);
-                            //db.SaveChanges();
-
-                            //newOrder.Seats.Add(seat);
                         }
 
                         db.SaveChanges();
                         transaction.Commit();
 
-                        return db.Orders
-                            //.Include(i => i.Seats)
-                            .Include(i => i.OrderSeats)
-                            .Include(i => i.OrderSeats.Select(s => s.Seat))
+                        newOrder = db.Orders
+                            .Include(i => i.OrderSeats.Select(s => s.Seat.Row))
                             .Where(w => w.ID.Equals(newOrder.ID))
                             .FirstOrDefault();
+
+                        return newOrder;
                     }
                     catch (Exception e)
                     {
