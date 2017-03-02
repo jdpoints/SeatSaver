@@ -11,10 +11,9 @@ namespace SeatSaver
 {
     public static class MockData
     {
+        // Build up mock data for testing
         public static void Create()
         {
-            MockData.CreateEDMX();
-
             try
             {
                 using (var db = new ReservationContext())
@@ -28,13 +27,11 @@ namespace SeatSaver
                     {
                         Row newRow = new Row { Venue = newVenue, RowNumber = i };
                         db.Rows.Add(newRow);
-                        //newVenue.Rows.Add(newRow);
 
                         for (int j = 1; j <= 5; j++)
                         {
                             Seat newSeat = new Seat { Row = newRow, SeatNumber = j };
                             db.Seats.Add(newSeat);
-                            //newRow.Seats.Add(newSeat);
                         }
                     }
 
@@ -60,17 +57,6 @@ namespace SeatSaver
             catch (Exception e)
             {
                 throw;
-            }
-        }
-
-        private static void CreateEDMX()
-        {
-            using (var ctx = new ReservationContext())
-            {
-                using (var writer = new XmlTextWriter(@"C:\Users\Josh\Documents\visual studio 2015\Projects\SeatSaver\Model.edmx", Encoding.Default))
-                {
-                    EdmxWriter.WriteEdmx(ctx, writer);
-                }
             }
         }
     }

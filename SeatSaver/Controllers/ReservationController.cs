@@ -7,6 +7,7 @@ using System.Web.Http;
 using System.Data.Entity;
 using System.Runtime.Serialization;
 using System.ComponentModel;
+using SeatSaver.Components;
 
 namespace SeatSaver.Controllers
 {
@@ -16,7 +17,7 @@ namespace SeatSaver.Controllers
         [Route("api/reservation")]
         public Responses.ReservationResponse ReserveSeats([FromBody] ApiReservationRequest request)
         {
-            SeatSelector selector = new SeatSelector();
+            ISeatSelector selector = new SeatSelector();
 
             return selector.ReserveBestSeats(request.CustomerID, request.EventID, request.NumberOfSeats, request.MaxRows);
         }

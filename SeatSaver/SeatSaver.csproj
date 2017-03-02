@@ -94,6 +94,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="App_Start\WebApiConfig.cs" />
+    <Compile Include="Components\ISeatSelector.cs" />
     <Compile Include="Controllers\ReservationController.cs" />
     <Compile Include="Global.asax.cs">
       <DependentUpon>Global.asax</DependentUpon>
@@ -109,7 +110,7 @@
     <Compile Include="Models\Venue.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Responses\ReservationResponse.cs" />
-    <Compile Include="SeatSelector.cs" />
+    <Compile Include="Components\SeatSelector.cs" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="packages.config" />

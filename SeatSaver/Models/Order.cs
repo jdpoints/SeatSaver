@@ -11,7 +11,6 @@ namespace SeatSaver.Models
         public Order()
         {
             OrderSeats = new HashSet<OrderSeat>();
-            //Seats = new HashSet<Seat>();
         }
 
         [Key]
@@ -24,6 +23,5 @@ namespace SeatSaver.Models
         public virtual Customer Customer { get; set; }
 
         public virtual ICollection<OrderSeat> OrderSeats { get; set; }
-        //public virtual ICollection<Seat> Seats { get; set; }
     }
 }

@@ -20,9 +20,6 @@ namespace SeatSaver.Models
         
         protected override void OnModelCreating(DbModelBuilder modelBuilder)
         {
-
-            //modelBuilder.Conventions.Remove<ManyToManyCascadeDeleteConvention>();
-
             modelBuilder.Entity<OrderSeat>()
                .HasRequired(r => r.Order)
                .WithMany(w => w.OrderSeats)

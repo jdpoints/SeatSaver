@@ -19,6 +19,5 @@ namespace SeatSaver.Models
         public virtual Row Row { get; set; }
 
         public virtual ICollection<OrderSeat> OrderSeats { get; set; }
-        //public virtual ICollection<Order> Orders { get; set; }
     }
 }

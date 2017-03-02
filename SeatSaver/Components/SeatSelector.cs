@@ -6,10 +6,18 @@ using System.Web;
 using SeatSaver.Models;
 using System.Runtime.CompilerServices;
 
-namespace SeatSaver
+namespace SeatSaver.Components
 {
-    public class SeatSelector
+    public class SeatSelector : ISeatSelector
     {
+        /// <summary>
+        /// Reserves seats for an event and prepares a ReservationResponse to return to the requestor
+        /// </summary>
+        /// <param name="customerID">ID of the Customer placing the order</param>
+        /// <param name="eventID">ID of the event to request seats for</param>
+        /// <param name="numberOfSeats">Total number of seats needed</param>
+        /// <param name="maxRows">Maximum number of rows seats can be split between</param>
+        /// <returns>Returns a ReservationResponse to the calling controller</returns>
         [MethodImpl(MethodImplOptions.Synchronized)]
         public Responses.ReservationResponse ReserveBestSeats(int customerID, int eventID, int numberOfSeats, int maxRows)
         {
@@ -25,9 +33,13 @@ namespace SeatSaver
 
             if (invalidEvent) { return Responses.ReservationResponse.InvalidEventResponse; }
 
+            // Create list of seats that are reserved
             List<Seat> seats = FindSeatsInVenue(numberOfSeats, eventID, maxRows);
+
+            // Create Order object and save in db, will be null if order cannot be saved
             Order order = this.CreateOrder(customerID, eventID, seats);
 
+            // If a valid order is created prepare success ReservationResponse with seat information
             if (order != null)
             {
                 response.Success = true;
@@ -45,6 +57,7 @@ namespace SeatSaver
                     response.Seats.Add(newSeat);
                 }
             }
+            // If invalid order then return failure response
             else
             {
                 response = Responses.ReservationResponse.ReservationCriteriaNotMet;
@@ -53,6 +66,14 @@ namespace SeatSaver
             return response;
         }
 
+        #region Private Methods
+        /// <summary>
+        /// Locate seats in a venue for a given event
+        /// </summary>
+        /// <param name="seats">Number of seats needed for event</param>
+        /// <param name="eventID">ID of the event</param>
+        /// <param name="maxRows">Maximum number of rows seats can be split between</param>
+        /// <returns>Returns a list of reserved seats or null if no seats are available for the given criteria</returns>
         [MethodImpl(MethodImplOptions.Synchronized)]
         private List<Seat> FindSeatsInVenue(int seats, int eventID, int maxRows)
         {
@@ -60,6 +81,7 @@ namespace SeatSaver
 
             using (var db = new ReservationContext())
             {
+                // Get list of Rows available in the Event Venue
                 List<Row> rows = db.Events
                     .Where(w => w.ID.Equals(eventID))
                     .FirstOrDefault()
@@ -67,6 +89,7 @@ namespace SeatSaver
                     .Rows
                     .ToList();
 
+                // Get IDs of seats that have already been reserved for this event
                 int[] takenSeats = db.OrderSeats
                     .Where(w => w.Order.EventID.Equals(eventID))
                     .Select(s => s.SeatID)
@@ -77,6 +100,7 @@ namespace SeatSaver
 
                 foreach(Row row in rows)
                 {
+                    // Get contiguous available seats in row
                     List<Seat> newSeats = this.FindSeatsInRow(seatsNeeded, row, takenSeats);
 
                     if (newSeats.Count > 0)
@@ -86,11 +110,11 @@ namespace SeatSaver
                         selectedSeats.AddRange(newSeats);
                     }
 
-                    if (seatsNeeded == 0)
+                    if (seatsNeeded == 0) // All requested seats have been reserved
                     {
                         break;
                     }
-                    else if (rowsRemaining == 0)
+                    else if (rowsRemaining == 0) // Seats have been split between too many rows
                     {
                         seatsNeeded += this.RemoveNearestRow(ref selectedSeats);
                         rowsRemaining++;
@@ -110,15 +134,21 @@ namespace SeatSaver
             }
         }
 
+        /// <summary>
+        /// Removes the row closest to the front
+        /// </summary>
+        /// <param name="selectedSeats">List of seats already selected</param>
+        /// <returns>Count of seats that were removed from selectedSeats</returns>
         [MethodImpl(MethodImplOptions.Synchronized)]
         private int RemoveNearestRow(ref List<Seat> selectedSeats)
         {
-            // Remove Seats from row nearest front and keep looking
+            // Get ID of row nearest front
             int rowID = selectedSeats
                 .Select(s => s.RowID)
                 .OrderBy(o => o)
                 .First();
 
+            // Get list of seats in nearest row
             List<Seat> dropSeats = selectedSeats
                 .Where(w => w.RowID.Equals(rowID))
                 .ToList();
@@ -129,7 +159,7 @@ namespace SeatSaver
         }
 
         /// <summary>
-        /// Attempt to locate seats in a row
+        /// Locate contiguous seats in given row
         /// </summary>
         /// <param name="seats">Number of seats needed</param>
         /// <param name="row">Entity Row to search for seats in</param>
@@ -158,6 +188,13 @@ namespace SeatSaver
             return selectedSeats;
         }
 
+        /// <summary>
+        /// Creates Order and saves to the database
+        /// </summary>
+        /// <param name="customerID">ID of Customer placing order</param>
+        /// <param name="eventID">ID of event the order is for</param>
+        /// <param name="seats">List of seats reserved with this order</param>
+        /// <returns>Returns Order Entity or null if save fails or seats empty</returns>
         [MethodImpl(MethodImplOptions.Synchronized)]
         private Order CreateOrder(int customerID, int eventID, List<Seat> seats)
         {
@@ -178,9 +215,7 @@ namespace SeatSaver
                         foreach(Seat seat in seats)
                         {
                             OrderSeat newSeat = new OrderSeat();
-                            //newSeat.Order = newOrder;
                             newSeat.OrderID = newOrder.ID;
-                            //newSeat.Seat = seat;
                             newSeat.SeatID = seat.ID;
                             
                             newOrder.OrderSeats.Add(newSeat);
@@ -197,7 +232,7 @@ namespace SeatSaver
 
                         return newOrder;
                     }
-                    catch (Exception e)
+                    catch
                     {
                         transaction.Rollback();
                     }
@@ -206,5 +241,6 @@ namespace SeatSaver
 
             return null;
         }
+        #endregion
     }
 }
